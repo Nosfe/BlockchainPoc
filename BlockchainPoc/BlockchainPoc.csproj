@@ -185,7 +185,6 @@
     </Compile>
     <Compile Include="Models\Block.cs" />
     <Compile Include="Models\Blockchain.cs" />
-    <Compile Include="Models\BlockchainPost.cs" />
     <Compile Include="Models\Transaction.cs" />
     <Compile Include="Models\TransactionPost.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

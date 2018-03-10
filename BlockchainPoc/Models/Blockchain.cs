@@ -2,6 +2,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Web;
 
 namespace BlockchainPoc.Models
@@ -29,10 +34,59 @@ namespace BlockchainPoc.Models
             });
         }
 
-        public static void AddNode(string node)
+        public static bool AddNode(string node)
         {
-            Nodes.Add(node);
-            Nodes.RemoveAll(item => item == node);
+            Regex regex = new Regex(@"^http(s)?://([\w-]+.)+[\w-]+(/[\w- ./?%&=])?$");
+
+            if (regex.Match(node).Success)
+            {
+                Nodes.RemoveAll(item => item == node);
+                Nodes.Add(node);
+                return true;
+            }
+
+            return false;
+        }
+
+        public static bool ValidBlockchain(List<Block> chainToValidate)
+        {
+            int i = 0;
+
+            while (i < chainToValidate.Count)
+            {
+                if (chainToValidate[i++].PreviousHash != Util.Hash.HashBlock(chainToValidate[i]))
+                {
+                    return false;
+                }
+                if (!Util.Hash.ValidateProof(chainToValidate[i].ProofOfWork, chainToValidate[i++].ProofOfWork))
+                {
+                    return false;
+                }
+                i++;
+            }
+
+            return true;
+        }
+
+        public static void ResolveConfilct()
+        {
+            List<Block> foreignblockchain = new List<Block>();
+
+            foreach (var node in Nodes)
+            {
+                try
+                {
+                    foreignblockchain = AsyncTaskCallWebAPIAsync(node + "/chain").Result;
+                    if (foreignblockchain.Count > Chain.Count && ValidBlockchain(foreignblockchain))
+                    {
+                        Chain = foreignblockchain;
+                    }
+                }
+                catch (WebException ex)
+                {
+                    throw;
+                }
+            }
         }
 
         public static Block GetLastBlock()
@@ -51,7 +105,7 @@ namespace BlockchainPoc.Models
                 ProofOfWork = proof,
                 PreviousHash = previousHash
             };
-            
+
             //On vide la liste des transactions en cours
             CurrentTransations = new List<Transaction>();
             Chain.Add(blockToAdd);
@@ -79,5 +133,23 @@ namespace BlockchainPoc.Models
             return Util.Hash.ProofOfWork(oldProof);
         }
 
+        private static async Task<List<Block>> AsyncTaskCallWebAPIAsync(string url)
+        {
+            using (var httpClient = new HttpClient())
+            {
+                // Do the actual request and await the response
+                var httpResponse = await httpClient.GetAsync(url);
+
+                // If the response contains content we want to read it!
+                if (httpResponse.Content != null)
+                {
+                    return JsonConvert.DeserializeObject<List<Block>>(await httpResponse.Content.ReadAsStringAsync());
+                }
+                else
+                {
+                    return new List<Block>();
+                }
+            }
+        }
     }
 }

@@ -18,8 +18,7 @@ namespace BlockchainPoc.Controllers
         {
             if (ModelState.IsValid)
             {
-                Blockchain.AddNode(node);
-                return true;
+                return Blockchain.AddNode(node);
             }
             else
             {
@@ -29,11 +28,12 @@ namespace BlockchainPoc.Controllers
 
         [HttpPost]
         [Route("resolve")]
-        public List<Block> Resolve([FromBody][Required]BlockchainPost blockchain)
+        public List<Block> Resolve()
         {
             if (ModelState.IsValid)
             {
-                return new List<Block>();
+                Blockchain.ResolveConfilct();
+                return Blockchain.Chain;
             }
             else
             {
